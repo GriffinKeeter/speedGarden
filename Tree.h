@@ -3,77 +3,89 @@
 #define TREE_H
 
 #include "plant.h"
+#include <cmath>
+#include "rando.h"
+#include "Colors.h"
+
 
 class Tree {
 public:
 	double x = 0;
 	double y = 0;
-	double* genome;
-	double maturity = 1;
-	Node* root;
-	Tree(double p_x, double p_y, double* p_genome, double p_maturity) {
+	double* genome = nullptr;
+	double maturity = 1.0;
+	Node* root = nullptr;
+	Tree(double p_x, double p_y, double p_maturity) {//maturity is the length of the first branch
 		x = p_x;
 		y = p_y;
-		genome = p_genome;
+		root = new Node(x, y, 0, 0);
 		maturity = p_maturity;
-		root = buildtree(maturity, x, y, 0);
+		genome = new double[20];
+		for (int i = 0; i < 20; i ++) {
+			genome[i] = randomf();
+		}
+
 	}
 
-	Node* buildtree(double length, double x, double y, int position) {//position increases to right, decreases to left
-
-		Node* root; //declaring the root, this is a ptr to a node
-
-		root = new Node(x, y);
-
-		if (length < 15) {
-
-			return(root);
+	void growth() {//maturity increment , deals with max height and growth rate
+		if (maturity < genome[15]*100) {
+			maturity += 0.05*genome[14];
 		}
-
-
-		double left_growth = root->growthRate(position, genome, 0);
-		double right_growth = root->growthRate(position, genome, 1);
-
-		double angle = root->angleFunc(position, genome);
-
-		bool branch = root->branchOrNot(position, genome);
-
-		if (branch) {
-			root->left = buildtree(length * left_growth, x - (cos(90 - angle) * length), y - (sin(90 - angle) * length), position - 1);  //a-> shorthand for (a*).b - accessing the left part of the Node pointed at by root*
-			root->right = buildtree(length * right_growth, x + (cos(90 - angle) * length), y - (sin(90 - angle) * length), position + 1);
-		}
-		else {
-
-			return(root);
-		}
-		return root;
 	}
 
-	void updateTree(Node* root, double length, double x, double y, int position) {//position increases to right, decreases to left
+	void moveAndGrowCaller(double x_change, double y_change) {//there has to be a better way to do this - how to start a recursive function with no parameters
+		moveAndGrow(root, x+x_change, y+y_change, maturity);
+	}
 
-		if (root!= nullptr) {
+	void moveAndGrow(Node* root, double x, double y, double prev_length) { 
+
+
+		//you need these whether you are updating positions or creating new nodes - formulas using position in the tree as input as well as genome
+		double angle = 3.14/4 * (sin((root->pos) * (genome[13]-0.5)*10*root->depth +sin(root->pos * genome[12]))*genome[13]+1);
+		double left_length = prev_length *0.8 - (sin(root->pos* (genome[10] - 0.5) *10+sin(root->depth * genome[11]*5))-1)*0.4;
+		double right_length = prev_length *0.8 - (sin(root->pos * (genome[11]-0.5) * 10 + sin(root->depth * genome[10] * 5)) - 1) * 0.4;
+
+
+		//new coordinates for the following nodes
+		double new_x_left = x - (cos(angle) * left_length);
+		double new_y_left = y - (sin(angle) * left_length);
+		double new_x_right = x + (cos(angle) * right_length);
+		double new_y_right = y - (sin(angle) * right_length);
+
+		int branch = sin(root->pos * (genome[7]-0.5) * 3.14 * 14 / 5)+1+(genome[8]-0.5);
+
+
+		if (root->left == nullptr && root->right == nullptr) { //node is a leaf and the branch before it was longer than 10
+			if (prev_length > 20. && branch > 0) {
+				root->left = new Node(new_x_left, new_y_left, (root->pos)-1, (root->depth)+1);
+
+				root->right = new Node(new_x_right, new_y_right, (root->pos) + 1, (root->depth) + 1);
+			}
+			else {
+				root->x = x;
+				root->y = y;
+			}
+		}
+		else if(root->left != nullptr && root->right != nullptr){ //node is inside the tree
 			root->x = x;
 			root->y = y;
 
-			double left_growth = root->growthRate(position, genome, 0);
-			double right_growth = root->growthRate(position, genome, 1);
-
-			double angle = root->angleFunc(position, genome);
-
-			bool branch = root->branchOrNot(position, genome);
-
-			if (branch) {
-				updateTree(root->left, length * left_growth, x - (cos(90 - angle) * length), y - (sin(90 - angle) * length), position - 1);  //a-> shorthand for (a*).b - accessing the left part of the Node pointed at by root*
-				updateTree(root->right, length * right_growth, x + (cos(90 - angle) * length), y - (sin(90 - angle) * length), position + 1);
-			}
+			moveAndGrow(root->left, new_x_left, new_y_left, left_length);
+			moveAndGrow(root->right, new_x_right, new_y_right, right_length);
 		}
 	}
 
 	void drawTree(Node* root, CImg<unsigned char>& img) {
-		unsigned char leaf[] = { genome[10]*255,genome[11] * 255,genome[12] * 255 };
-		unsigned char branch[] = { genome[8] * 255,genome[9] * 255,genome[10] * 255 };
+		unsigned char leaf[] = { genome[6]*255, genome[5]*255, genome[4]*255 };
+		unsigned char branch[] = { genome[3]*255, genome[2]*255, genome[1]*255 };
 		if (root->left == nullptr && root->right == nullptr) {
-			img.draw_circle(root->x, root->y, 2, leaf, 1.0);
+			int radius = 2;
+			int mid_x = 320;
+			int mid_y = 200;
+			if (root->x < mid_x + 7 && root->x > mid_x - 7 && root->y > mid_y - 7 && root->y < mid_y + 7) {
+				img.draw_circle(root->x, root->y, radius+3, white, 1.0);
+			}
+			img.draw_circle(root->x, root->y, radius, leaf, 1.0);
 			return;
 		}
 		//drawTree()

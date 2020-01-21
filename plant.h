@@ -18,7 +18,7 @@ public:
 	double y;
 	int pos = 0;//distance from center
 	int depth = 0;//distance from root
-	bool selected = false;
+	//bool selected = false;
 	Node* left = nullptr;
 	Node* right = nullptr;
 
